@@ -1,0 +1,19 @@
+GENERAL
+-------
+-support IPv6
+-stats on processed packets: total, processed, errors, ...
+-openvpn protocol
+-tinc protocol
+-add more encrytion algorithms
+
+ESP
+---
+-handle transport mode
+
+GRE
+---
+-notes on ttl (rfc 2784)
+
+Virtual lan
+-----------
+-no support for double-tagged frame (802.1ad)
