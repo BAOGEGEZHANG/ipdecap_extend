@@ -59,7 +59,7 @@
     error("Cannot malloc");                             \
   }                                                     \
 }
-//#define _QDEBUG
+#define _QDEBUG
 
 #ifdef _QDEBUG
 #define QDebug_string(string)  					printf ("[%s,%s,%d]string:%s\n", __FILE__, __func__, __LINE__, (string))
