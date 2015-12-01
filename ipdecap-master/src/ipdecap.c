@@ -730,6 +730,7 @@ void gre_process_fragment_start(const u_char *payload, const int payload_len, pc
   
   payload_dst += tmp_ip_hdr->ip_hl*4;
   memcpy(payload_dst, new_ppp_fragment_payload, tmp_ppp_fragment_size);
+  QDebug_strval2("packet_num,ppp_index", packet_num, ppp_index);
   out_pkthdr.ts.tv_sec = packet_num;
   out_pkthdr.ts.tv_usec = ppp_index;
   out_pkthdr.caplen = tmp_ppp_fragment_size + sizeof(struct ether_header) + tmp_ip_hdr->ip_hl*4;
@@ -1925,17 +1926,19 @@ NOFRAGMENT:
     case IPPROTO_IPIP:
       debug_print("%s\n", "\tIPPROTO_IPIP");
       process_ipip_packet(in_payload, in_pkthdr->caplen, out_pkthdr, out_payload);
+      out_pkthdr->ts.tv_sec = packet_num;
       pcap_dump((u_char *)pcap_dumper, out_pkthdr, out_payload);
       break;
     case IPPROTO_IPV6:
       debug_print("%s\n", "\tIPPROTO_IPV6");
       process_ipv6_packet(in_payload, in_pkthdr->caplen, out_pkthdr, out_payload);
+      out_pkthdr->ts.tv_sec = packet_num;
       pcap_dump((u_char *)pcap_dumper, out_pkthdr, out_payload);
       break;
     case IPPROTO_GRE:
       debug_print("%s\n", "\tIPPROTO_GRE\n");
-      QDebug_string("#######################################################");
       process_gre_packet(in_payload, in_pkthdr->caplen, out_pkthdr, out_payload);
+      out_pkthdr->ts.tv_sec = packet_num;
       pcap_dump((u_char *)pcap_dumper, out_pkthdr, out_payload);
       break;
     case IPPROTO_ESP:
@@ -1948,11 +1951,13 @@ NOFRAGMENT:
         return;
       }
       process_esp_packet(in_payload, in_pkthdr->caplen, out_pkthdr, out_payload);
+      out_pkthdr->ts.tv_sec = packet_num;
       pcap_dump((u_char *)pcap_dumper, out_pkthdr, out_payload);
       break;
     default:
       // Copy not encapsulated/unknown encpsulation protocol packets, like non_ip packets
       process_nonip_packet(in_payload, in_pkthdr->caplen, out_pkthdr, out_payload);
+      out_pkthdr->ts.tv_sec = packet_num;
       pcap_dump((u_char *)pcap_dumper, out_pkthdr, out_payload);
       verbose("Copying packet %i: not encapsulated/unknown encapsulation protocol\n", packet_num);
     } // if (ntohs(eth_hdr->ether_type) != ETHERTYPE_IP)
