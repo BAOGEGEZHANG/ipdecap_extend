@@ -502,7 +502,11 @@ u_char *gre_remove_PPP_header(u_char *payload, int *packet_size)
   QDebug_string("[gre_remove_PPP_header]comming into");
   int gre_ppp_type ;
   if(*packet_size < sizeof(int)){
-    return GRE_PPP_INVAILD;
+    if (*(payload) != 0x7e){
+      return GRE_PPP_FRAGMENT;
+    }else{
+      return GRE_PPP_INVAILD;
+    } 
   }
   gre_ppp_type = gre_get_ppp_type(*(int *)payload);
   QDebug_strval1("Get gre_ppp_type", gre_ppp_type);
