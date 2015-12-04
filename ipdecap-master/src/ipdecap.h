@@ -62,13 +62,19 @@
 #define _QDEBUG
 
 #ifdef _QDEBUG
-#define QDebug_string(string)  					printf ("[%s,%s,%d]string:%s\n", __FILE__, __func__, __LINE__, (string))
-#define QDebug_strval1(string, val)    printf ("[%s,%s,%d]string:%s,val:0x%x\n", __FILE__, __func__, __LINE__, (string), (val))
+#define QDebug_string(string)  					      printf ("[%s,%s,%d]string:%s\n", __FILE__, __func__, __LINE__, (string))
+#define QDebug_strval1(string, val)           printf ("[%s,%s,%d]string:%s,val:0x%x\n", __FILE__, __func__, __LINE__, (string), (val))
 #define QDebug_strval2(string, val1, val2)    printf ("[%s,%s,%d]string:%s,val1:0x%x, val2:0x%x\n", __FILE__, __func__, __LINE__, (string), (val1), (val2))
+#define QDebug_Error(string)  					      printf ("\033[31m[%s,%s,%d]string:%s\n\033[0m", __FILE__, __func__, __LINE__, (string))
+#define QDebug_Errorval1(string, val)           printf ("\033[31m[%s,%s,%d]string:%s,val:0x%x\n\033[0m", __FILE__, __func__, __LINE__, (string), (val))
+#define QDebug_Errorval2(string, val1, val2)    printf ("\033[31m[%s,%s,%d]string:%s,val1:0x%x, val2:0x%x\n\033[0m", __FILE__, __func__, __LINE__, (string), (val1), (val2))
 #else
 #define QDebug_string(string)  					
 #define QDebug_strval1(string, val)    
 #define QDebug_strval2(string, val1, val2)    
+#define QDebug_Error(string)  					
+#define QDebug_Errorval1(string, val)    
+#define QDebug_Errorval2(string, val1, val2)    
 #endif
 
 typedef struct pcap_pkthdr pcap_hdr;
