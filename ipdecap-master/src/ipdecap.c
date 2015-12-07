@@ -563,19 +563,19 @@ int ppp_format_payload (  u_char  *ppp_payload, int *ppp_payload_size)
   ppp_payload_length : total packet length
   output_payload : the pointer point is valid address ;
 * result :
-    success : 0;
+    success : PPP_TYPE;
     false : < 0;
-    invalid : > 0;
+    invalid : > GRE_PPP_INVAILD;
 *   description : remove ppp header ;
 */
-int ppp_remove_header(u_char *ppp_payload, int *ppp_payload_length, uint8_t *output_payload)
+int ppp_remove_header(u_char *ppp_payload, int *ppp_payload_length, uint8_t **output_payload)
 {
   QDebug_string("[gre_remove_PPP_header]comming into");
   if (NULL == ppp_payload){
     QDebug_Error("gre_remove_PPP_header is failed; parameter is invalid;");
     return -1;
   }
-  output_payload = ppp_payload;
+  *output_payload = ppp_payload;
   if(*ppp_payload_length < sizeof(int)){
     if (*(ppp_payload) != 0x7e){
       return GRE_PPP_FRAGMENT;
@@ -612,8 +612,8 @@ int ppp_remove_header(u_char *ppp_payload, int *ppp_payload_length, uint8_t *out
   default :
     return GRE_PPP_FRAGMENT;
   }
-  output_payload = ppp_payload;
-  return 0;
+  *output_payload = ppp_payload;
+  return gre_ppp_type;
 }
 
 
@@ -640,7 +640,7 @@ int ppp_remove_tail(u_char *ppp_payload, int *ppp_payload_length)
 }
 
 /*
-  name: ppp_process_payload
+  name: ppp_autoformat_payload
   parameter: 
     ppp_one_packet_payload  : start of ppp packet ;
     ppp_one_packet_length   : address of ppp_one_packet length 
@@ -654,7 +654,7 @@ int ppp_remove_tail(u_char *ppp_payload, int *ppp_payload_length)
     process_ppp_payload  aim to org info data
 */
 
-int ppp_descreamble_payload(uint8_t *ppp_one_packet_payload, int *ppp_one_packet_length, uint8_t **output_ppp_one_packet_payload, int* ppp_type)
+int ppp_autoformat_payload(uint8_t *ppp_one_packet_payload, int *ppp_one_packet_length, uint8_t **output_ppp_one_packet_payload, int* ppp_type)
 {
   if ((NULL == ppp_one_packet_payload) || (NULL == ppp_one_packet_length)){
     QDebug_Error("ppp_process_payload is failed; parameter is invalid;");
@@ -668,12 +668,12 @@ int ppp_descreamble_payload(uint8_t *ppp_one_packet_payload, int *ppp_one_packet
     return -1;
   }  
   uint8_t *new_ppp_fragment_payload = NULL; 
-  ret =   ppp_remove_header( ppp_one_packet_payload, ppp_one_packet_length, new_ppp_fragment_payload);
+  ret =   ppp_remove_header( ppp_one_packet_payload, ppp_one_packet_length, &new_ppp_fragment_payload);
   if (ret < 0){
     QDebug_Error("ppp_remove_header is failed; parameter is invalid;");
     return -1;
-  }else if ((ret == GRE_PPP_FRAGMENT) || (0 == ret)){
-    *ppp_type = ret;
+  }else if ((ret == GRE_PPP_FRAGMENT) || (ret == GRE_PPP_ZIP) || (ret == GRE_PPP_NO_ZIP)){
+    *ppp_type = ret ;
     ret = ppp_remove_tail( new_ppp_fragment_payload, ppp_one_packet_length);
     if (ret < 0){
       QDebug_Error("ppp_remove_tail is failed; parameter is invalid;");
@@ -704,7 +704,7 @@ int ppp_recal_ip_key(uint8_t *org_ppp_packet_payload, int org_ppp_packet_size, I
       ip_key->ip_dst = cur->ip.inter_ip_dst;
       ip_key->ip_src = cur->ip.inter_ip_src;
     }
-  }else if (ppp_type == 0){
+  }else if ((ppp_type == GRE_PPP_ZIP) || (ppp_type == GRE_PPP_NO_ZIP)){
     struct ip* inter_ip_hdr = (struct ip*)org_ppp_packet_payload;
     if (inter_ip_hdr->ip_hl*4 > org_ppp_packet_size){
       return 1;
@@ -716,7 +716,102 @@ int ppp_recal_ip_key(uint8_t *org_ppp_packet_payload, int org_ppp_packet_size, I
 
 }
 
+/*
+  name : ppp_process_packet_normal_dump
+  parameter :
+    output_payload : ready to write packet
+    output_payload_size : size of packet
+  return :
+    success 0, failed -1;
+  description :
+    write packet into file by pcap_dump
+*/
 
+int ppp_process_packet_normal_dump(uint8_t *output_payload, int output_payload_size)
+{
+  if ((NULL == output_payload) || (output_payload_size < sizeof(ether_header))){
+    QDebug_Error("ppp_process_packet_normal_dump is failed");
+    return -1;
+  }
+
+  struct pcap_pkthdr out_pkthdr = {0x00};  
+
+  out_pkthdr.ts.tv_sec = packet_num;
+  out_pkthdr.ts.tv_usec = packet_num;
+  out_pkthdr.caplen = output_payload_size;
+  out_pkthdr.len = out_pkthdr.caplen;
+  pcap_dump((u_char *)pcap_dumper, &out_pkthdr, output_payload);
+  return 0;
+}
+
+
+/*
+  name : ppp_process_packet_normal
+  parameter : 
+    ppp_payload : the pointer point to ppp segment
+    ppp_payload_length : length of ppp segment
+  return :
+    successs 0, failed -1;
+  description :
+    process ppp payload normal
+*/
+int ppp_process_packet_normal(uint8_t *eth_payload, int *eth_payload_length)
+{
+  if ((NULL == eth_payload) || (NULL == eth_payload_length) || (*eth_payload_length <= sizeof(ether_header))){
+    QDebug_Error("ppp_process_packet_normal is failed, parameter is invalid");
+    return -1;
+  }
+  uint8_t *output_payload = NULL; 
+  uint8_t *mac_payload = NULL;
+  mac_payload = malloc (sizeof(ether_header));
+  if (NULL == mac_payload){
+    QDebug_Error("mac_payload malloc buffer is failed");
+    goto failed;
+  }
+  memcpy(mac_payload, eth_payload, sizeof(ether_header));
+  eth_payload += sizeof(ether_header);
+  int ip_hl = ((struct ip*)eth_payload)->ip_hl*4;
+  int ip_len = ((struct ip*)eth_payload)->ip_len * 8;
+
+  eth_payload += ip_hl;
+  GRE_FLAG tmp;
+  int gre_hl = gre_get_items((struct grehdr *)eth_payload, &tmp);
+  if (gre_hl <= 0){
+    QDebug_Error("gre_get_items is failed");
+    goto failed;
+  }
+  eth_payload += gre_hl;
+  int ppp_size = ip_len - ip_hl - gre_hl;  
+  int ppp_type, ret = 0;
+  uint8_t *new_ppp_payload = NULL;
+  ret = ppp_autoformat_payload( eth_payload, &ppp_size, &new_ppp_payload, &ppp_type);
+  if (ret >= 0){
+    QDebug_Error("ppp_autoformat_payload is failed or not support");
+    goto failed;
+  }
+
+  output_payload = malloc (TMP_BUF_PAYLOAD_SIZE);
+  if (NULL == output_payload){
+    QDebug_Error("output_payload malloc is failed");
+    goto failed;
+  }
+
+  memcpy(output_payload, mac_payload, sizeof(ether_header));
+  memcpy(output_payload + sizeof(ether_header), new_ppp_payload, ppp_size);
+
+  ret = ppp_process_packet_normal_dump( output_payload, ppp_size + sizeof(ether_header));
+  if (ret < 0){
+    QDebug_Error("ppp_process_packet_normal_dump is failed");
+    goto failed;
+  }
+
+  return 0;
+failed :
+  if (NULL != mac_payload)
+    free(mac_payload);
+  if (NULL != output_payload)
+    free(output_payload);
+}
 
 /*
 * name: gre_process_fragment_start
