@@ -224,7 +224,7 @@ struct _Statistic_Log
 IP_Node   *ip_list;
 Gre_Node  *gre_list;
 Statistic_LOG statistic_log;
-uint64_t packet_num = 0;
+uint64_t packet_num = 1;
 
 
 
@@ -2509,6 +2509,7 @@ void handle_packets(u_char *bpf_filter, const struct pcap_pkthdr *pkthdr, const 
     uint16_t ip_len, ip_hl, ip_off;
     uint32_t hash_id = 0;
     uint64_t packet_length;
+    uint8_t *new_in_payload = NULL;
     ip_len = ntohs(ip_hdr->ip_len);
     ip_hl = ip_hdr->ip_hl * 4;
     ip_id = ntohs(ip_hdr->ip_id);
@@ -2520,6 +2521,7 @@ void handle_packets(u_char *bpf_filter, const struct pcap_pkthdr *pkthdr, const 
     int ret = 0;
     if (ip_hdr->ip_p == IPPROTO_GRE)
     {
+      //goto END;
       ret = ip_get_df( ip_hdr);
       if (ret == 1)
       {
@@ -2622,50 +2624,118 @@ void handle_packets(u_char *bpf_filter, const struct pcap_pkthdr *pkthdr, const 
           }
         }
       }
-    }
+    }/*not gre protocol*/
     else
     {
       statistic_log.not_gre_pacekt_cnt++;
-      //goto DEFAULT;
-      goto END;
+      ret = ip_get_df( ip_hdr);
+      if (ret == 1){
+        goto DEFAULT;
+      }else /* df == 0*/{
+        ret = ip_get_mf( ip_hdr);
+        if (ret ==  1){
+          IP_Node *find_ret = list_ip_find(ip_list,  hash_id);
+          if (NULL == find_ret){
+            Note cur = {0x00};
+            cur.id = ip_id;
+            cur.offset = (ntohs(ip_hdr->ip_off) & IP_OFFMASK)*8 + ip_len - ip_hl;
+            cur.buffer = malloc (TMP_BUF_PAYLOAD_SIZE);
+            if (NULL == cur.buffer)
+            {
+              QDebug_Error("ip buffer malloc is failed");
+              goto END;
+            }
+            memcpy(cur.buffer, in_payload, packet_length);
+            cur.length = packet_length;
+            list_ip_add( ip_list, hash_id, cur);
+            goto END;
+          }else /* found hash_id*/{
+            if (find_ret->ip.offset != ip_off)
+            {
+              QDebug_string("wanted packet is lost or later");
+              statistic_log.reserv_cnt++;
+              statistic_log.drop_ip_cnt++;
+              goto END;
+            }
+            find_ret->ip.buffer = realloc(find_ret->ip.buffer, find_ret->ip.length + ip_len - ip_hl);
+            memcpy(find_ret->ip.buffer + find_ret->ip.length, in_payload + sizeof(struct ether_header) + ip_hl, ip_len - ip_hl);
+            find_ret->ip.length += ip_len - ip_hl;
+            goto END;
+          }
+        }else /*mf = 0*/{
+          if (ip_off == 0)
+          {
+            statistic_log.gre_mf_tony_last_packet_cnt++;
+            new_in_payload = in_payload;
+            goto DEFAULT;
+          }else {
+            statistic_log.gre_mf_last_packet_cnt++;
+            IP_Node *find_ret = list_ip_find( ip_list,  hash_id);
+            if (NULL == find_ret)
+            {
+              QDebug_string("we lost all pre_packets");
+              statistic_log.ip_not_find_cnt++;
+              statistic_log.drop_ip_cnt++;
+              goto END;
+            }
+            else
+            {
+              if (ip_off != find_ret->ip.offset)
+              {
+                statistic_log.reserv_cnt++;
+                QDebug_string("we lost middle packets");
+                statistic_log.drop_ip_cnt++;
+                goto END;
+              }
+              find_ret->ip.buffer = realloc(find_ret->ip.buffer, find_ret->ip.length + ip_len - ip_hl);
+              memcpy(find_ret->ip.buffer + find_ret->ip.length, in_payload + sizeof(struct ether_header) + ip_hl, ip_len - ip_hl);
+              find_ret->ip.length += ip_len - ip_hl;
+              new_in_payload = find_ret->ip.buffer;
+              packet_length = find_ret->ip.length;
+              goto DEFAULT;
+            }
+          }
+        }
+      }
     }
 DEFAULT:
     switch (ip_hdr->ip_p)
     {
     case IPPROTO_IPIP:
       debug_print("%s\n", "\tIPPROTO_IPIP");
-      process_ipip_packet(in_payload, in_pkthdr->caplen, out_pkthdr, out_payload);
+      process_ipip_packet(new_in_payload, packet_length, out_pkthdr, out_payload);
       out_pkthdr->ts.tv_sec = packet_num;
       pcap_dump((u_char *)pcap_dumper, out_pkthdr, out_payload);
       break;
     case IPPROTO_IPV6:
       debug_print("%s\n", "\tIPPROTO_IPV6");
-      process_ipv6_packet(in_payload, in_pkthdr->caplen, out_pkthdr, out_payload);
+      process_ipv6_packet(new_in_payload, packet_length, out_pkthdr, out_payload);
       out_pkthdr->ts.tv_sec = packet_num;
       pcap_dump((u_char *)pcap_dumper, out_pkthdr, out_payload);
       break;
     case IPPROTO_GRE:
       debug_print("%s\n", "\tIPPROTO_GRE\n");
-      process_gre_packet(in_payload, in_pkthdr->caplen, out_pkthdr, out_payload);
+      process_gre_packet(new_in_payload, packet_length, out_pkthdr, out_payload);
       out_pkthdr->ts.tv_sec = packet_num;
       pcap_dump((u_char *)pcap_dumper, out_pkthdr, out_payload);
       break;
-    case IPPROTO_ESP:
-      debug_print("%s\n", "\tIPPROTO_ESP\n");
-      if (ignore_esp == 1)
-      {
-        verbose("Ignoring ESP packet %i\n", packet_num);
-        free(out_pkthdr);
-        free(out_payload);
-        return;
-      }
-      process_esp_packet(in_payload, in_pkthdr->caplen, out_pkthdr, out_payload);
-      out_pkthdr->ts.tv_sec = packet_num;
-      pcap_dump((u_char *)pcap_dumper, out_pkthdr, out_payload);
-      break;
+//    case IPPROTO_ESP:
+//     debug_print("%s\n", "\tIPPROTO_ESP\n");
+//      if (ignore_esp == 1)
+//      {
+//        verbose("Ignoring ESP packet %i\n", packet_num);
+//        free(out_pkthdr);
+//        free(out_payload);
+//        return;
+//      }
+//      process_esp_packet(new_in_payload, packet_length, out_pkthdr, out_payload);
+//      out_pkthdr->ts.tv_sec = packet_num;
+//      pcap_dump((u_char *)pcap_dumper, out_pkthdr, out_payload);
+//      break;
     default:
       // Copy not encapsulated/unknown encpsulation protocol packets, like non_ip packets
       process_nonip_packet(in_payload, in_pkthdr->caplen, out_pkthdr, out_payload);
+      
       out_pkthdr->ts.tv_sec = packet_num;
       pcap_dump((u_char *)pcap_dumper, out_pkthdr, out_payload);
       verbose("Copying packet %i: not encapsulated/unknown encapsulation protocol\n", packet_num);
