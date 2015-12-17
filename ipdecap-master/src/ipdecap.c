@@ -155,9 +155,11 @@ struct _gre_node
 struct _ip_node
 {
   uint8_t enable;
+  uint8_t fragment;
   uint8_t p;
   uint8_t tos;
-  uint16_t id;
+  uint16_t outer_id;
+  uint16_t inter_id;
   uint32_t src;
   uint32_t dst;
   uint16_t nextoff, curoff;
@@ -1078,14 +1080,15 @@ int ppp_process_packet(uint8_t *eth_payload, int eth_payload_length, int packet_
   src_payload += ETHER_HDR_LEN;
 
   struct ip* ip_hdr = (struct ip*)src_payload;
+  uint8_t ip_frag = (ntohs(ip_hdr->ip_off) & IP_MF)?1:0;
   int ip_hl = ip_hdr->ip_hl * 4;
   int ip_len = eth_payload_length - ETHER_HDR_LEN;
+  uint16_t ip_outer_id = ntohs(ip_hdr->ip_id);
 
-  int ip_id   =   ntohs(ip_hdr->ip_id);
   int ip_src  =   ntohl(ip_hdr->ip_src.s_addr);
   int ip_dst  =   ntohl(ip_hdr->ip_dst.s_addr);
   uint32_t hash_id = 0;
-  hash_id = ip_cal_hashid( ip_src,  ip_dst,  ip_id);
+  hash_id = ip_cal_hashid( ip_src,  ip_dst,  0);
   uint8_t *ip_payload = NULL;
   ip_payload = malloc (ip_hl);
   if (NULL == ip_payload)
@@ -1171,7 +1174,7 @@ int ppp_process_packet(uint8_t *eth_payload, int eth_payload_length, int packet_
       int ip_dst = ntohl(ip_hdr->ip_dst.s_addr);
       int ip_p  = ip_hdr->ip_p;
       uint8_t ip_tos = ip_hdr->ip_tos;
-      uint16_t ip_id = ntohs(ip_hdr->ip_id);
+      uint16_t ip_inter_id = ntohs(ip_hdr->ip_id);
 
       uint8_t *data_payload = new_output_payload + ip_hl;
       int data_payload_length = ppp_payload_length - ip_hl;
@@ -1218,7 +1221,9 @@ int ppp_process_packet(uint8_t *eth_payload, int eth_payload_length, int packet_
         list_node.ip_node.dst = ip_dst;
         list_node.ip_node.p = ip_p;
         list_node.ip_node.tos = ip_tos;
-        list_node.ip_node.id = ip_id;
+        list_node.ip_node.outer_id = ip_outer_id;
+        list_node.ip_node.inter_id = ip_inter_id;
+        list_node.ip_node.fragment = ip_frag;
         list_node.ip_node.nextoff = bytes/8;
         list_node.ip_node.curoff = 0;
         list_node.ip_node.enable = 1;
@@ -1248,6 +1253,13 @@ int ppp_process_packet(uint8_t *eth_payload, int eth_payload_length, int packet_
       QDebug_string("gre_flag.seqnum is error");
       return 1;
     }
+    
+    if (find_ret->ip_node.fragment){
+      if (find_ret->ip_node.outer_id != ip_outer_id){
+        return 1;
+      }
+    }
+    
     find_ret->ip_node.buffer = realloc(find_ret->ip_node.buffer, find_ret->ip_node.buffer_length + ppp_payload_length);
     if (NULL == find_ret->ip_node.buffer)
     {
@@ -1262,12 +1274,13 @@ int ppp_process_packet(uint8_t *eth_payload, int eth_payload_length, int packet_
     int ip_src , ip_dst, ip_p;
     int ip_hl, ip_len;
     uint8_t ip_tos;
-    uint16_t ip_id;
+    uint16_t ip_inter_id, ip_outer_id;
     uint16_t ip_off = 0;
     if (find_ret->ip_node.enable != 1)
     {
       ip_hdr = (struct ip*)(find_ret->ip_node.buffer);
       ip_len = ntohs(ip_hdr->ip_len);
+      ip_inter_id = ntohs(ip_hdr->ip_id);
       memcpy(output_payload + ETHER_HDR_LEN, find_ret->ip_node.buffer, ip_len);
       packet_size += ip_len;
     }else {
@@ -1275,7 +1288,7 @@ int ppp_process_packet(uint8_t *eth_payload, int eth_payload_length, int packet_
       ip_dst =  find_ret->ip_node.dst;
       ip_p =    find_ret->ip_node.p;
       ip_off =  find_ret->ip_node.nextoff;
-      ip_id = find_ret->ip_node.id;
+      ip_inter_id = find_ret->ip_node.inter_id;
       ip_tos = find_ret->ip_node.tos;
       
       //re-modify ip-segmnet info node rf: 0 df:0 mf:0
@@ -1284,7 +1297,7 @@ int ppp_process_packet(uint8_t *eth_payload, int eth_payload_length, int packet_
       ip_hdr->ip_src.s_addr = htonl(ip_src);
       ip_hdr->ip_dst.s_addr = htonl(ip_dst);
       ip_hdr->ip_p = ip_p;
-      ip_hdr->ip_id = htons(ip_id);
+      ip_hdr->ip_id = htons(ip_inter_id);
       ip_hdr->ip_tos = ip_tos;
       ip_hdr->ip_ttl = 0x30;
       ip_hdr->ip_len = htons(ip_hl + find_ret->ip_node.buffer_length);
@@ -1325,6 +1338,13 @@ int ppp_process_packet(uint8_t *eth_payload, int eth_payload_length, int packet_
       QDebug_string("gre_flag.seqnum is error");
       return 1;
     }
+
+    if (find_ret->ip_node.fragment){
+      if (find_ret->ip_node.outer_id != ip_outer_id){
+        return 1;
+      }
+    }
+    
     find_ret->ip_node.buffer = realloc(find_ret->ip_node.buffer, find_ret->ip_node.buffer_length+ ppp_payload_length);
     if (NULL == find_ret->ip_node.buffer)
     {
@@ -1337,7 +1357,7 @@ int ppp_process_packet(uint8_t *eth_payload, int eth_payload_length, int packet_
     struct ip* ip_hdr = NULL;
     int ip_src , ip_dst, ip_p;
     int ip_hl, ip_len;
-    uint16_t ip_id, ip_off;
+    uint16_t ip_inter_id, ip_off;
     uint8_t ip_tos;
     int bytes, last;
     if (find_ret->ip_node.enable != 1)
@@ -1348,7 +1368,7 @@ int ppp_process_packet(uint8_t *eth_payload, int eth_payload_length, int packet_
       ip_src = ntohl(ip_hdr->ip_src.s_addr);
       ip_dst = ntohl(ip_hdr->ip_dst.s_addr);
       ip_p = ip_hdr->ip_p;
-      ip_id = ntohs(ip_hdr->ip_id);
+      ip_inter_id = ntohs(ip_hdr->ip_id);
       ip_tos = ip_hdr->ip_tos;
 
       bytes = (find_ret->ip_node.buffer_length - ip_hl) / 8 * 8;
@@ -1375,7 +1395,7 @@ int ppp_process_packet(uint8_t *eth_payload, int eth_payload_length, int packet_
       ip_src = find_ret->ip_node.src;
       ip_dst = find_ret->ip_node.dst;
       ip_p = find_ret->ip_node.p;
-      ip_id = find_ret->ip_node.id;
+      ip_inter_id = find_ret->ip_node.inter_id;
       ip_tos = find_ret->ip_node.tos;
       ip_off = find_ret->ip_node.nextoff;
 
@@ -1388,7 +1408,7 @@ int ppp_process_packet(uint8_t *eth_payload, int eth_payload_length, int packet_
       ip_hdr->ip_dst.s_addr = htonl(ip_dst);
       ip_hdr->ip_p = ip_p;
       ip_hdr->ip_tos = ip_tos;
-      ip_hdr->ip_id = htons(ip_id);
+      ip_hdr->ip_id = htons(ip_inter_id);
       Set_IP_FLAG_DF( ip_hdr, 0);
       Set_IP_FLAG_MF(ip_hdr, 1);
       Set_IP_FLAG_Offset( ip_hdr, ip_off);
@@ -1420,8 +1440,10 @@ int ppp_process_packet(uint8_t *eth_payload, int eth_payload_length, int packet_
       list_node.ip_node.dst = ip_dst;
       list_node.ip_node.src = ip_src;
       list_node.ip_node.p = ip_p;
+      list_node.ip_node.fragment = ip_frag;
       list_node.ip_node.tos = ip_tos;
-      list_node.ip_node.id = ip_id;
+      list_node.ip_node.outer_id = ip_outer_id;
+      list_node.ip_node.inter_id = ip_inter_id;
       list_node.ip_node.nextoff=bytes/8;
       ppp_list_add( list_header, &list_node);
     }
