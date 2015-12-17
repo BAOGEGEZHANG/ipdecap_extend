@@ -280,8 +280,8 @@ int ip_get_mf (const struct ip*ip_hdr)
 
 uint32_t ip_cal_hashid(uint32_t ip_src, uint32_t ip_dst, uint16_t id)
 {
-//  return ((ip_src * ip_dst)*(ip_src * ip_dst));
-  return ip_src + ip_dst;
+  return ((ip_src * ip_dst)*(ip_src * ip_dst));
+//  return ip_src + ip_dst;
 }
 #if 0
 int Get_IP_Fragment_statue(const struct ip ip_hdr)
@@ -550,7 +550,7 @@ int gre_get_items(struct grehdr *gre_hdr, GRE_NODE *result)
   uint16_t flag;
   int length = 0;
   u_char *pos = (u_char *)gre_hdr;
-  if (ntohs(gre_hdr->next_protocol) == 0x8881)
+  if ((ntohs(gre_hdr->next_protocol)) == 0x8881 && (ntohs(gre_hdr->flags) == 0x3000))
   {
     length = sizeof(struct grehdr);
     pos += length;
@@ -1086,7 +1086,6 @@ int ppp_process_packet(uint8_t *eth_payload, int eth_payload_length, int packet_
   int ip_dst  =   ntohl(ip_hdr->ip_dst.s_addr);
   uint32_t hash_id = 0;
   hash_id = ip_cal_hashid( ip_src,  ip_dst,  ip_id);
-  QDebug_Errorval1("hash_id", hash_id);
   uint8_t *ip_payload = NULL;
   ip_payload = malloc (ip_hl);
   if (NULL == ip_payload)
@@ -1184,16 +1183,14 @@ int ppp_process_packet(uint8_t *eth_payload, int eth_payload_length, int packet_
       if (ppp_payload_length >= ip_len){
         Set_IP_FLAG_DF( ip_hdr, 1);
         Set_IP_FLAG_MF(ip_hdr, 0);
-        Set_IP_FLAG_Offset( ip_hdr, 0);
-        memcpy(output_payload + ETHER_HDR_LEN, new_output_payload, ip_hl);
-        memcpy(output_payload + ETHER_HDR_LEN + ip_hl, new_output_payload + ip_hl, data_payload_length);
-        packet_size = ETHER_HDR_LEN + ppp_payload_length;
+        Set_IP_FLAG_Offset( ip_hdr, 0);        
+        memcpy(output_payload + ETHER_HDR_LEN, new_output_payload, ip_len);
+        packet_size = ETHER_HDR_LEN + ip_len;
         last = 0;
       }else {
         Set_IP_FLAG_DF( ip_hdr, 0);
         Set_IP_FLAG_MF(ip_hdr, 1);
         Set_IP_FLAG_Offset( ip_hdr, 0);
-        struct ip* ip_hdr = (struct ip*)new_output_payload;
         ip_hdr->ip_len = htons(ip_hl + bytes);
         memcpy(output_payload + ETHER_HDR_LEN, new_output_payload, ip_hl);
         memcpy(output_payload + ETHER_HDR_LEN + ip_hl, new_output_payload + ip_hl, bytes);
@@ -1225,7 +1222,6 @@ int ppp_process_packet(uint8_t *eth_payload, int eth_payload_length, int packet_
         list_node.ip_node.nextoff = bytes/8;
         list_node.ip_node.curoff = 0;
         list_node.ip_node.enable = 1;
-        QDebug_Errorval1("hashid_add", hash_id);
         ppp_list_add( list_header, &list_node);
       }
     }
@@ -1233,7 +1229,6 @@ int ppp_process_packet(uint8_t *eth_payload, int eth_payload_length, int packet_
   else if (packet_status == PPP_PKT_END_OK)
   {
     LIST_NODE *find_ret = NULL;
-    QDebug_Errorval1("hashid", hash_id);
     find_ret = ppp_list_find( list_header, hash_id);
     if (NULL == find_ret)
     {
@@ -1261,7 +1256,6 @@ int ppp_process_packet(uint8_t *eth_payload, int eth_payload_length, int packet_
     }
     memcpy(find_ret->ip_node.buffer + find_ret->ip_node.buffer_length, new_output_payload, ppp_payload_length);
     find_ret->ip_node.buffer_length += ppp_payload_length;
-    Print_Debug(find_ret->ip_node.buffer, find_ret->ip_node.buffer_length);
     memcpy(output_payload, eth_payload, ETHER_HDR_LEN);
 
     struct ip* ip_hdr = NULL;
@@ -1292,8 +1286,8 @@ int ppp_process_packet(uint8_t *eth_payload, int eth_payload_length, int packet_
       ip_hdr->ip_p = ip_p;
       ip_hdr->ip_id = htons(ip_id);
       ip_hdr->ip_tos = ip_tos;
-      ip_hdr->ip_ttl = 0x40;
-      ip_hdr->ip_len = htons(ip_hl + ppp_payload_length);
+      ip_hdr->ip_ttl = 0x30;
+      ip_hdr->ip_len = htons(ip_hl + find_ret->ip_node.buffer_length);
       Set_IP_FLAG_DF( ip_hdr, 0);
       Set_IP_FLAG_MF( ip_hdr, 0);
       Set_IP_FLAG_Offset( ip_hdr, ip_off);
@@ -1301,7 +1295,7 @@ int ppp_process_packet(uint8_t *eth_payload, int eth_payload_length, int packet_
       memcpy(output_payload + ETHER_HDR_LEN + ip_hl, find_ret->ip_node.buffer, find_ret->ip_node.buffer_length);
       packet_size += ip_hl + find_ret->ip_node.buffer_length;
     }
-    Print_Debug( output_payload, packet_size);
+    //Print_Debug( output_payload, packet_size);
     ret = ppp_process_packet_normal_dump( output_payload, packet_size);
     if (ret < 0)
     {
@@ -1343,7 +1337,7 @@ int ppp_process_packet(uint8_t *eth_payload, int eth_payload_length, int packet_
     struct ip* ip_hdr = NULL;
     int ip_src , ip_dst, ip_p;
     int ip_hl, ip_len;
-    uint16_t ip_id;
+    uint16_t ip_id, ip_off;
     uint8_t ip_tos;
     int bytes, last;
     if (find_ret->ip_node.enable != 1)
@@ -1356,19 +1350,38 @@ int ppp_process_packet(uint8_t *eth_payload, int eth_payload_length, int packet_
       ip_p = ip_hdr->ip_p;
       ip_id = ntohs(ip_hdr->ip_id);
       ip_tos = ip_hdr->ip_tos;
-      memcpy(output_payload + ETHER_HDR_LEN, find_ret->ip_node.buffer, ip_hl);
-      bytes = (ip_len - ip_hl) / 8 * 8;
-      last = (ip_len - ip_hl) % 8;
-      packet_size += ip_hl;
-      memcpy(output_payload + ETHER_HDR_LEN + ip_hl, find_ret->ip_node.buffer + ip_hl, bytes);
-      packet_size += bytes;
+
+      bytes = (find_ret->ip_node.buffer_length - ip_hl) / 8 * 8;
+      last =  (find_ret->ip_node.buffer_length - ip_hl) % 8;
+
+
+      if (ppp_payload_length >= ip_len){
+        Set_IP_FLAG_DF( ip_hdr, 1);
+        Set_IP_FLAG_MF(ip_hdr, 0);
+        Set_IP_FLAG_Offset( ip_hdr, 0);
+        memcpy(output_payload + ETHER_HDR_LEN, new_output_payload, ip_len);
+        packet_size = ETHER_HDR_LEN + ip_len;
+        last = 0;
+      }else {
+        Set_IP_FLAG_DF( ip_hdr, 0);
+        Set_IP_FLAG_MF(ip_hdr, 1);
+        Set_IP_FLAG_Offset( ip_hdr, 0);
+        ip_hdr->ip_len = htons(ip_hl + bytes);
+        memcpy(output_payload + ETHER_HDR_LEN, find_ret->ip_node.buffer, ip_hl);
+        memcpy(output_payload + ETHER_HDR_LEN + ip_hl, find_ret->ip_node.buffer + ip_hl, bytes);
+        packet_size = ETHER_HDR_LEN + ip_hl + bytes;
+      }
     }else {
       ip_src = find_ret->ip_node.src;
       ip_dst = find_ret->ip_node.dst;
       ip_p = find_ret->ip_node.p;
       ip_id = find_ret->ip_node.id;
       ip_tos = find_ret->ip_node.tos;
-      
+      ip_off = find_ret->ip_node.nextoff;
+
+      bytes = find_ret->ip_node.buffer_length / 8 * 8;
+      last = find_ret->ip_node.buffer_length % 8;
+
       ip_hdr = (struct ip*)ip_payload;
       ip_hl = ip_hdr->ip_hl*4;
       ip_hdr->ip_src.s_addr = htonl(ip_src);
@@ -1376,9 +1389,11 @@ int ppp_process_packet(uint8_t *eth_payload, int eth_payload_length, int packet_
       ip_hdr->ip_p = ip_p;
       ip_hdr->ip_tos = ip_tos;
       ip_hdr->ip_id = htons(ip_id);
+      Set_IP_FLAG_DF( ip_hdr, 0);
+      Set_IP_FLAG_MF(ip_hdr, 1);
+      Set_IP_FLAG_Offset( ip_hdr, ip_off);
+      ip_hdr->ip_len = htons(ip_hl + bytes);
       memcpy(output_payload + ETHER_HDR_LEN, ip_payload, ip_hl);
-      bytes = find_ret->ip_node.buffer_length / 8 * 8;
-      last = find_ret->ip_node.buffer_length % 8;
       memcpy(output_payload + ETHER_HDR_LEN + ip_hl, find_ret->ip_node.buffer, bytes);
       packet_size += ip_hl + bytes;
     }    
@@ -1407,7 +1422,7 @@ int ppp_process_packet(uint8_t *eth_payload, int eth_payload_length, int packet_
       list_node.ip_node.p = ip_p;
       list_node.ip_node.tos = ip_tos;
       list_node.ip_node.id = ip_id;
-      list_node.ip_node.curoff=bytes/8;
+      list_node.ip_node.nextoff=bytes/8;
       ppp_list_add( list_header, &list_node);
     }
   }
@@ -1470,7 +1485,6 @@ int ppp_process_packets(uint8_t *eth_payload, int *eth_payload_length, GRE_NODE 
   int ppp_index = 0, ppp_pos;
   int struct_pacekt_length = 0;
   const int ex_hl = sizeof(struct ether_header) + ip_hl;
-  QDebug_strval1("ex_hl", ex_hl);
   memcpy(struct_pacekt, eth_payload, sizeof(struct ether_header) + ip_hl);
   QDebug_strval1("ppp_num", ppp_num);
   while(ppp_num--)
@@ -2707,6 +2721,7 @@ void handle_packets(u_char *bpf_filter, const struct pcap_pkthdr *pkthdr, const 
       src_payload += gre_hl;
       packet_length -= gre_hl;
       memcpy(new_payload + ETHER_HDR_LEN + ip_hl, src_payload, packet_length - ETHER_HDR_LEN - ip_hl);
+      //re-struct packet : mac + ip + ppp + payload 
       int ret = 0;
       ret = ppp_process_packets(new_payload, &packet_length, &gre_node);
       if (ret < 0)
