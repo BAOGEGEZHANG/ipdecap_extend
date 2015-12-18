@@ -6,7 +6,7 @@ struct grehdr {
   u_int16_t next_protocol;
   } __attribute((packed));
 
-
+#define GRE_RESER    0x07f8
 #define GRE_CHECKSUM 0x8000
 #define GRE_ROUTING  0x4000
 #define GRE_KEY      0x2000

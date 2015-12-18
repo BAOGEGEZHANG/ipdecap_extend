@@ -549,14 +549,17 @@ int gre_get_items(struct grehdr *gre_hdr, GRE_NODE *result)
     QDebug_Errorval2("gre_get_items is failed, parameter is invalid, gre_hdr, result;", gre_hdr, result);
     return -1;
   }
-  uint16_t flag;
   int length = 0;
+  uint16_t flag = ntohs(gre_hdr->flags);;
   u_char *pos = (u_char *)gre_hdr;
-  if ((ntohs(gre_hdr->next_protocol)) == 0x8881 && (ntohs(gre_hdr->flags) == 0x3000))
+  if (flag & GRE_RESER){
+    QDebug_Error("gre header is not valied");
+    return length;
+  }
+  if ((ntohs(gre_hdr->next_protocol)) == 0x8881)
   {
     length = sizeof(struct grehdr);
     pos += length;
-    flag = ntohs(gre_hdr->flags);
     if (flag & GRE_CHECKSUM || flag & GRE_ROUTING)
     {
       length += 4;
@@ -571,6 +574,10 @@ int gre_get_items(struct grehdr *gre_hdr, GRE_NODE *result)
     if (flag & GRE_SEQ)
     {
       result->seqnum = ntohl (*(int *)pos);
+      length += 4;
+      pos += 4;
+    }
+    if (flag & GRE_ROUTING){
       length += 4;
       pos += 4;
     }
@@ -2725,7 +2732,14 @@ void handle_packets(u_char *bpf_filter, const struct pcap_pkthdr *pkthdr, const 
       src_payload += ETHER_HDR_LEN + ip_hl;
       int gre_hl = 0;
       GRE_NODE gre_node = {0x00};
-      gre_hl = gre_get_items((struct grehdr *) src_payload, &gre_node);
+
+      int ip_frag = (ntohs(ip_hdr->ip_off) & IP_OFFMASK)?1:0;
+      if (ip_frag){
+          gre_hl = 0;
+      }else {
+          gre_hl = gre_get_items((struct grehdr *) src_payload, &gre_node);
+      }
+      
       LIST_NODE *list_node = NULL;
       if (0 == gre_hl){
         list_node = ppp_list_find( list_header, hash_id);
