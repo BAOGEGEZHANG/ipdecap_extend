@@ -94,15 +94,6 @@ void usage(void)
 
 //define by myself
 
-#define IP_FLAG_DF      0x4000
-#define IP_FLAG_MF      0x2000
-#define IP_FLAG_Flag    0xe000
-#define IP_FLAG_OFFSET  0x1fff
-
-#define IP_FLAG_MF_START    0X01
-#define IP_FLAG_MF_MID      0X02
-#define IP_FLAG_MF_END      0X03
-#define IP_MIN_HEADER       20
 
 #define GRE_PPP_ZIP         0X00
 #define GRE_PPP_NO_ZIP      0X01
@@ -112,8 +103,8 @@ void usage(void)
 #define GRE_PPP_NO_IP       0X05
 #define GRE_PPP_INVAILD     0X05
 
-#define GRE_PPP_MIN_SIZE    0X02
-#define GRE_PPP_ZIP_HEADERSIZE 0X02
+#define GRE_PPP_MIN_SIZE        0X02
+#define GRE_PPP_ZIP_HEADERSIZE  0X02
 #define GRE_PPP_NO_ZIP_HEADERSIZE 0X05
 #define GRE_PPP_PACKET_MAXNUM_PPP  64
 
@@ -121,12 +112,12 @@ void usage(void)
 #define PPP_PKT_START_OK  0X01
 #define PPP_PKT_END_OK    0X02
 #define PPP_PKT_BRK       0X03
+#define PPP_PKT_NUM       0x03
 
+#define IP_MIN_HEADER       20
+#define AGE_TIME_INIT       100
 #define DGB_FORMAT_LINE_LEN     16
-#define IP_PAYLOAD_MIN_SIZE     20
-#define TMP_BUF_PAYLOAD_SIZE        65536
-
-#define AGE_TIME_INIT 100
+#define TMP_BUF_PAYLOAD_SIZE    65536
 
 #define GetBit(dat,i) ((dat&(0x0001<<i))?1:0)
 #define SetBit(dat,i) ((dat)|=(0x0001<<(i)))
@@ -138,9 +129,9 @@ typedef struct _Node      LIST_NODE;
 typedef struct _ip_node   IP_NODE;
 typedef struct _gre_node  GRE_NODE;
 
-typedef struct _Point     Point;
-typedef struct _PPP_RET   PPP_RET;
-typedef struct _IP_KEY    IP_KEY;
+typedef struct _Point       Point;
+typedef struct _PPP_RET     PPP_RET;
+typedef struct _IP_INFO     IP_INFO;
 typedef struct _Statistic_Log Statistic_LOG;
 
 
@@ -190,14 +181,16 @@ struct _PPP_RET
   Point ppp_pos[GRE_PPP_PACKET_MAXNUM_PPP] ;
 };
 
-struct _IP_KEY
+struct _IP_INFO
 {
-  uint8_t   header_length;
+  uint8_t   hl;
   uint8_t   version;
   uint8_t   tos;
   uint16_t  total_len;
   uint16_t  id;
   uint16_t  offset;
+  uint8_t   df:1;
+  uint8_t   mf:1;
   uint8_t   ttl;
   uint8_t   protocol;
   uint16_t  checksum;
@@ -249,20 +242,20 @@ void Print_Debug(unsigned char*pos, int len)
 void Print_Statistic_cnt()
 {
   printf ("==========================================================\n");
-  printf ("statistic_log.not_gre_pacekt_cnt:%d\n",statistic_log.not_gre_pacekt_cnt);
-  printf ("statistic_log.gre_df_packet_cnt:%d\n",statistic_log.gre_df_packet_cnt);
-  printf ("statistic_log.gre_mf_packet_cnt:%d\n",statistic_log.gre_mf_packet_cnt);
-  printf ("statistic_log.gre_mf_tony_last_packet_cnt:%d\n",statistic_log.gre_mf_tony_last_packet_cnt);
-  printf ("statistic_log.gre_mf_last_packet_cnt:%d\n",statistic_log.gre_mf_last_packet_cnt);
-  printf ("statistic_log.ip_not_find_cnt:%d\n", statistic_log.ip_not_find_cnt);
-  printf ("statistic_log.ip_find_cnt:%d\n", statistic_log.ip_find_cnt);
-  printf ("statistic_log.gre_find_cnt:%d\n",statistic_log.gre_find_cnt);
-  printf ("statistic_log.gre_not_find_cnt:%d\n", statistic_log.gre_not_find_cnt);
-  printf ("statistic_log.gre_ppp_invalid_pro:%d\n",statistic_log.gre_ppp_invalid_pro);
-  printf ("statistic_log.dump_cnt:%d\n",statistic_log.dump_cnt + statistic_log.not_gre_pacekt_cnt);
-  printf ("statistic_log.drop_gre_cnt:%d\n",statistic_log.drop_gre_cnt);
-  printf ("statistic_log.drop_ip_cnt:%d\n", statistic_log.drop_ip_cnt);
-  printf ("statistic_log.reserv_cnt:%d\n", statistic_log.reserv_cnt);
+  printf ("statistic_log.not_gre_pacekt_cnt:%lu\n",statistic_log.not_gre_pacekt_cnt);
+  printf ("statistic_log.gre_df_packet_cnt:%lu\n",statistic_log.gre_df_packet_cnt);
+  printf ("statistic_log.gre_mf_packet_cnt:%lu\n",statistic_log.gre_mf_packet_cnt);
+  printf ("statistic_log.gre_mf_tony_last_packet_cnt:%lu\n",statistic_log.gre_mf_tony_last_packet_cnt);
+  printf ("statistic_log.gre_mf_last_packet_cnt:%lu\n",statistic_log.gre_mf_last_packet_cnt);
+  printf ("statistic_log.ip_not_find_cnt:%lu\n", statistic_log.ip_not_find_cnt);
+  printf ("statistic_log.ip_find_cnt:%lu\n", statistic_log.ip_find_cnt);
+  printf ("statistic_log.gre_find_cnt:%lu\n",statistic_log.gre_find_cnt);
+  printf ("statistic_log.gre_not_find_cnt:%lu\n", statistic_log.gre_not_find_cnt);
+  printf ("statistic_log.gre_ppp_invalid_pro:%lu\n",statistic_log.gre_ppp_invalid_pro);
+  printf ("statistic_log.dump_cnt:%lu\n",statistic_log.dump_cnt + statistic_log.not_gre_pacekt_cnt);
+  printf ("statistic_log.drop_gre_cnt:%lu\n",statistic_log.drop_gre_cnt);
+  printf ("statistic_log.drop_ip_cnt:%lu\n", statistic_log.drop_ip_cnt);
+  printf ("statistic_log.reserv_cnt:%lu\n", statistic_log.reserv_cnt);
 }
 
 int ip_get_df(const struct ip *ip_hdr)
@@ -283,98 +276,11 @@ int ip_get_mf (const struct ip*ip_hdr)
 uint32_t ip_cal_hashid(uint32_t ip_src, uint32_t ip_dst, uint16_t id)
 {
   return ((ip_src * ip_dst)*(ip_src * ip_dst));
-//  return ip_src + ip_dst;
 }
-#if 0
-int Get_IP_Fragment_statue(const struct ip ip_hdr)
-{
-  if (Is_IP_Fragment(ip_hdr))
-  {
-    if (ntohs(ip_hdr.ip_off) & IP_MF)
-    {
-      if (ntohs(ip_hdr.ip_off) & IP_FLAG_OFFSET)
-      {
-        return IP_FLAG_MF_MID;
-      }
-      else
-      {
-        return IP_FLAG_MF_START;
-      }
-    }
-    else /*not more fragment*/
-    {
-      if (!(ntohs(ip_hdr.ip_off) & IP_FLAG_OFFSET))
-      {
-        return IP_FLAG_MF_START;
-      }
-      else
-      {
-        return IP_FLAG_MF_END;
-      }
-    }
-  }
-  else
-  {
-    QDebug_string("[%s]Not Fragment");
-  }
-}
-#endif
-uint16_t Get_IP_FLAG_Offset(struct ip ip_hdr)
-{
-  return (IP_FLAG_OFFSET & ntohs(ip_hdr.ip_off));
-}
-
-uint8_t Get_IP_Item(struct ip* input_ip_hdr, IP_KEY *ip_key)
-{
-  if ((NULL == input_ip_hdr) || (NULL == ip_key))
-  {
-    QDebug_Error("Get_IP_Item is failed;parameter is invalid;");
-    return -1;
-  }
-  memset(ip_key, 0x00, sizeof(IP_KEY));
-  ip_key->header_length = input_ip_hdr->ip_hl * 4;
-  ip_key->version = input_ip_hdr->ip_v;
-  ip_key->tos = input_ip_hdr->ip_tos;
-  ip_key->total_len = ntohs(input_ip_hdr->ip_len);
-  ip_key->id = ntohs(input_ip_hdr->ip_id);
-  ip_key->offset = (ntohs(input_ip_hdr->ip_off) & IP_OFFMASK) * 8;
-  ip_key->ttl = input_ip_hdr->ip_ttl;
-  ip_key->checksum = ntohs(input_ip_hdr->ip_sum);
-  ip_key->ip_src  = ntohl(input_ip_hdr->ip_src.s_addr);
-  ip_key->ip_dst  = ntohl(input_ip_hdr->ip_dst.s_addr);
-  return 0;
-}
-
-
-uint8_t Set_IP_FLAG_DF (struct ip *ip_hdr, uint8_t flag)
-{
-  if (flag == 1)
-    ip_hdr->ip_off = htons(ntohs(ip_hdr->ip_off) | IP_FLAG_DF);
-  else
-    ip_hdr->ip_off = htons(ntohs(ip_hdr->ip_off) & (~IP_FLAG_DF));
-  return ntohs(ip_hdr->ip_off) & IP_FLAG_DF;
-}
-
-uint8_t Set_IP_FLAG_MF (struct ip *ip_hdr, uint8_t flag)
-{
-  if (flag == 1)
-    ip_hdr->ip_off = htons(ntohs(ip_hdr->ip_off) | IP_FLAG_MF);
-  else
-    ip_hdr->ip_off = htons(ntohs(ip_hdr->ip_off) & (~IP_FLAG_MF));
-  return ntohs(ip_hdr->ip_off) & IP_FLAG_MF;
-}
-
-
-uint16_t Set_IP_FLAG_Offset (struct ip *ip_hdr, uint16_t offset)
-{
-  ip_hdr->ip_off = htons((ntohs(ip_hdr->ip_off) & IP_FLAG_Flag) | offset );
-  return (ip_hdr->ip_off);
-}
-
 
 uint16_t ip_checksum(uint16_t *ip_payload, int ip_payload_length)
 {
-  if ((NULL == ip_payload) || (ip_payload_length < IP_PAYLOAD_MIN_SIZE))
+  if ((NULL == ip_payload) || (ip_payload_length < IP_MIN_HEADER))
   {
     QDebug_Errorval2("ip_checksum is failed,parameter is invalid;ip_payload, ip_payload_length;", ip_payload, ip_payload_length);
     return 0;
@@ -393,6 +299,76 @@ uint16_t ip_checksum(uint16_t *ip_payload, int ip_payload_length)
   cksum += (cksum >> 16);
   return (uint16_t)(~cksum);
 }
+
+
+uint16_t ip_off_info(struct ip *ip_hdr)
+{
+  return (IP_OFFMASK & ntohs(ip_hdr->ip_off));
+}
+
+int ip_all_info(const struct ip* ip_hdr, IP_INFO *ip_info)
+{
+  if ((NULL == ip_hdr) || (NULL == ip_info))
+  {
+    QDebug_Error("ip_all_info is failed;parameter is invalid;");
+    return -1;
+  }
+  memset(ip_info, 0x00, sizeof(IP_INFO));
+  
+  ip_info->tos = ip_hdr->ip_tos;
+  ip_info->ttl = ip_hdr->ip_ttl;
+  ip_info->hl = ip_hdr->ip_hl * 4;
+  ip_info->version = ip_hdr->ip_v;
+  ip_info->id = ntohs(ip_hdr->ip_id);
+  ip_info->checksum = ntohs(ip_hdr->ip_sum);
+  ip_info->total_len = ntohs(ip_hdr->ip_len);
+  ip_info->ip_src  = ntohl(ip_hdr->ip_src.s_addr);
+  ip_info->ip_dst  = ntohl(ip_hdr->ip_dst.s_addr);
+  ip_info->df = (ntohs(ip_hdr->ip_off) & IP_DF)?1:0;
+  ip_info->mf = (ntohs(ip_hdr->ip_off) & IP_MF)?1:0;
+  ip_info->offset = (ntohs(ip_hdr->ip_off) & IP_OFFMASK) * 8;
+  return 0;
+}
+
+
+int Set_IP_FLAG_DF (struct ip *ip_hdr, uint8_t flag)
+{
+  if ((NULL == ip_hdr) || (flag > 1)){
+    QDebug_Error("Set_IP_Flag_df is failed,the parameter is invalid");
+    return -1;
+  }
+  if (flag == 1)
+    ip_hdr->ip_off = htons(ntohs(ip_hdr->ip_off) | IP_DF);
+  else
+    ip_hdr->ip_off = htons(ntohs(ip_hdr->ip_off) & (~IP_DF));
+  return 0;
+}
+
+int Set_IP_FLAG_MF (struct ip *ip_hdr, uint8_t flag)
+{
+  if ((NULL == ip_hdr) || (flag > 1)){
+    QDebug_Error("Set_IP_Flag_MF is failed, parameter is invalid");
+    return -1;
+  }
+  if (flag == 1)
+    ip_hdr->ip_off = htons(ntohs(ip_hdr->ip_off) | IP_MF);
+  else
+    ip_hdr->ip_off = htons(ntohs(ip_hdr->ip_off) & (~IP_MF));
+  return 0;
+}
+
+
+int Set_IP_FLAG_Offset (struct ip *ip_hdr, uint16_t offset)
+{
+  if ((NULL == ip_hdr)){
+    QDebug_Error("Set_IP_flag_Offset is failed, parameter is invalid");
+    return -1;
+  }
+  ip_hdr->ip_off = htons((ntohs(ip_hdr->ip_off) & (~IP_OFFMASK)) | offset );
+  return 0;
+}
+
+
 
 //#########################################################
 //  LIST Function
@@ -466,72 +442,6 @@ LIST_NODE * ppp_list_find(LIST_NODE *list, uint32_t hash_id)
   }
   return NULL;
 }
-
-#if 0
-/*
-  name : list_gre_add
-  parameter:
-    list : header of list
-    cur : fill data wanted
-  return :
-    success 0, failed -1;
-  description :
-    operator of list;
-
-*/
-
-int list_gre_add(Gre_Node* list, Gre_Node cur)
-{
-  QDebug_string("list_gre_add into");
-  if ((NULL == list) || (NULL == cur.buffer))
-  {
-    QDebug_Error("list_gre_add is failed, parameter is invalid");
-    return -1;
-  }
-  Gre_Node *tmp = (Gre_Node *)malloc(sizeof(Gre_Node));
-  if (NULL == tmp)
-  {
-    QDebug_string("[Add_List]malloc node space failed");
-    return -1;
-  }
-  list_add (&(tmp->pos), &(list->pos));
-  tmp->age_time = AGE_TIME_INIT;
-  tmp->key = cur.key;
-  tmp->seqnum = cur.seqnum;
-  tmp->length = cur.length;
-  tmp->buffer = cur.buffer;
-  return 0;
-}
-
-int list_gre_del(Gre_Node* pos)
-{
-  list_del((struct list_head *)pos);
-  free(pos->buffer);
-  free(pos);
-  return 0;
-}
-
-Gre_Node *list_gre_find (Gre_Node *list, uint32_t key)
-{
-  struct list_head *pos, *n;
-  list_for_each_safe(pos, n, &(list->pos))
-  {
-    if (((Gre_Node*)pos)->key == key)
-    {
-      statistic_log.gre_find_cnt++;
-      QDebug_string("list_gre_find key");
-      return (Gre_Node *)pos;
-    }
-    //destory_node when age_time timeout
-    if ( 0 >= ((Gre_Node*)pos)->age_time --)
-    {
-      statistic_log.drop_gre_cnt++;
-      list_gre_del((Gre_Node*)pos);
-    }
-  }
-  return NULL;
-}
-#endif
 
 //GRE packet parser & process function
 /*
@@ -856,38 +766,6 @@ int ppp_autoformat_payload(uint8_t *ppp_one_packet_payload, int *ppp_one_packet_
   *output_ppp_one_packet_payload = new_ppp_fragment_payload;
   return 0;
 }
-#if 0
-int ppp_recal_ip_key(uint8_t *org_ppp_packet_payload, int org_ppp_packet_size, IP_KEY *ip_key, int ppp_type)
-{
-  if ((NULL == org_ppp_packet_payload) || (NULL == ip_key))
-  {
-    QDebug_Error("ppp_recal_ip_key is failed; parameter is invalid");
-    return -1;
-  }
-  uint32_t hash_id = 0;
-  if (ppp_type == GRE_PPP_FRAGMENT)
-  {
-    hash_id = Get_hashid( ip_key->ip_dst, ip_key->ip_src, ip_key->id);
-    Node *cur = Find_List ( list, hash_id);
-    if (NULL != cur)
-    {
-      ip_key->ip_dst = cur->ip.inter_ip_dst;
-      ip_key->ip_src = cur->ip.inter_ip_src;
-    }
-  }
-  else if ((ppp_type == GRE_PPP_ZIP) || (ppp_type == GRE_PPP_NO_ZIP))
-  {
-    struct ip* inter_ip_hdr = (struct ip*)org_ppp_packet_payload;
-    if (inter_ip_hdr->ip_hl*4 > org_ppp_packet_size)
-    {
-      return 1;
-    }
-    ip_key->ip_src = ntohl(inter_ip_hdr->ip_src.s_addr);
-    ip_key->ip_dst = ntohl(inter_ip_hdr->ip_dst.s_addr);
-    ip_key->protocol =  inter_ip_hdr->ip_p;
-  }
-}
-#endif
 /*
   name : ppp_process_packet_normal_dump
   parameter :
@@ -915,31 +793,6 @@ int ppp_process_packet_normal_dump(uint8_t *output_payload, int output_payload_s
   return 0;
 }
 
-/*
-  name : ppp_format_8Byte_dump
-  parameter:
-    output_payload : the pointer of ready to dump
-    output_payload_size : the pointer will note length of remaind
-  return :
-    failed : NULL
-    success : valid addrress
-  description:
-    8 Byte align dump
-*/
-uint8_t * ppp_format_8Byte_dump(uint8_t *output_payload, int *output_payload_size)
-{
-  if ((NULL == output_payload) || (NULL == output_payload_size))
-  {
-    QDebug_Error("ppp_format_8Byte_dump is failed, parameter is invalid");
-    return NULL;
-  }
-  int lineB = *output_payload_size / 8;
-  int last = *output_payload_size - lineB * 8;
-  int bytes = lineB * 8;
-  int ret = 0;
-  *output_payload_size = last;
-  return output_payload + bytes;
-}
 
 /*
   name : ppp_process_packet_normal
@@ -1056,8 +909,6 @@ int ppp_packet_status(uint8_t *ppp_payload, int ppp_payload_length, int packet_p
     return PPP_PKT_BRK;
   }
 }
-
-
 /*
   name : ppp_process_packet
   parameter:
@@ -1072,7 +923,7 @@ int ppp_packet_status(uint8_t *ppp_payload, int ppp_payload_length, int packet_p
 
 int ppp_process_packet(uint8_t *eth_payload, int eth_payload_length, int packet_position, GRE_NODE *gre_node)
 {
-  if ((NULL == eth_payload) || (eth_payload_length < sizeof(struct ether_header)) || (NULL == gre_node))
+  if ((NULL == eth_payload) || (eth_payload_length < ETHER_HDR_LEN) || (NULL == gre_node))
   {
     QDebug_Error("eth_payload is failed, parameter is invalid");
     return -1;
@@ -1081,45 +932,48 @@ int ppp_process_packet(uint8_t *eth_payload, int eth_payload_length, int packet_
   uint8_t *output_payload = NULL;
   output_payload = malloc (TMP_BUF_PAYLOAD_SIZE);
   if (NULL == output_payload){
-    QDebug_Error("malloc is failed");
+    QDebug_Error("malloc is failed in ppp_process_packet");
     return -1;
   }
   src_payload += ETHER_HDR_LEN;
-
+  int packet_size = ETHER_HDR_LEN;
+  
   struct ip* ip_hdr = (struct ip*)src_payload;
-  uint8_t ip_frag = (ntohs(ip_hdr->ip_off) & IP_MF)?1:0;
-  int ip_hl = ip_hdr->ip_hl * 4;
-  int ip_len = eth_payload_length - ETHER_HDR_LEN;
-  uint16_t ip_outer_id = ntohs(ip_hdr->ip_id);
-
+  int ip_hl   =   ip_hdr->ip_hl * 4;
   int ip_src  =   ntohl(ip_hdr->ip_src.s_addr);
   int ip_dst  =   ntohl(ip_hdr->ip_dst.s_addr);
-  uint32_t hash_id = 0;
-  hash_id = ip_cal_hashid( ip_src,  ip_dst,  0);
+  uint16_t ip_outer_id = ntohs(ip_hdr->ip_id);
+  int ip_len = eth_payload_length - ETHER_HDR_LEN;
+  uint8_t ip_frag = (ntohs(ip_hdr->ip_off) & IP_MF)?1:0;
+  
   uint8_t *ip_payload = NULL;
   ip_payload = malloc (ip_hl);
   if (NULL == ip_payload)
   {
-    QDebug_Error("malloc is failed");
+    QDebug_Error("ip_payload malloc is failed");
     return -1;
   }
   memcpy(ip_payload, src_payload, ip_hl);
+  
+  uint32_t hash_id = 0;
+  hash_id = ip_cal_hashid( ip_src,  ip_dst,  0);
+  
   src_payload += ip_hl;
-  int ppp_payload_length = ip_len - ip_hl;
-  int packet_size = ETHER_HDR_LEN;
   int packet_status = 0;
+  int ppp_payload_length = ip_len - ip_hl;
   packet_status = ppp_packet_status( src_payload, ppp_payload_length, packet_position);
   if (packet_status < 0)
   {
     QDebug_Error("ppp_packet_status is failed");
     return 1;
   }
+  
   LIST_NODE list_node = {0x00};
   list_node.age_time = AGE_TIME_INIT;
   list_node.hash_id = hash_id;
-  int ppp_type;
+  
+  int ppp_type,ret = 0;
   uint8_t *new_output_payload = NULL;
-  int ret = 0;
   ret = ppp_autoformat_payload( src_payload, &ppp_payload_length, &new_output_payload, &ppp_type);
   if (ret < 0)
   {
@@ -1128,20 +982,20 @@ int ppp_process_packet(uint8_t *eth_payload, int eth_payload_length, int packet_
   }
   else if (ret > 0)
   {
-    QDebug_string("not support protocol");
+    QDebug_string("ppp_autoformat_payload not support protocol");
     return 1;
   }
   else
   {
-    //ringth ok
+    QDebug_string("ppp_autoformat_payload process payload is ok");
   }
   
   if (packet_status == PPP_PKT_OK)
   {
-    memcpy(output_payload, eth_payload, ETHER_HDR_LEN);
     struct ip*ip_hdr = (struct ip*)new_output_payload;
     ip_len = ntohs(ip_hdr->ip_len);
     packet_size += ip_len;
+    memcpy(output_payload, eth_payload, ETHER_HDR_LEN);
     memcpy(output_payload + ETHER_HDR_LEN, new_output_payload, ip_len);
     
     ret = ppp_process_packet_normal_dump( output_payload, packet_size);
@@ -1306,7 +1160,6 @@ int ppp_process_packet(uint8_t *eth_payload, int eth_payload_length, int packet_
       ip_hdr->ip_p = ip_p;
       ip_hdr->ip_id = htons(ip_inter_id);
       ip_hdr->ip_tos = ip_tos;
-      ip_hdr->ip_ttl = 0x30;
       ip_hdr->ip_len = htons(ip_hl + find_ret->ip_node.buffer_length);
       Set_IP_FLAG_DF( ip_hdr, 0);
       Set_IP_FLAG_MF( ip_hdr, 0);
@@ -1483,16 +1336,21 @@ failed:
 
 int ppp_process_packets(uint8_t *eth_payload, int *eth_payload_length, GRE_NODE *gre_node)
 {
-  if ((NULL == eth_payload) || (NULL == eth_payload_length) || (*eth_payload_length < sizeof(struct ether_header)))
+  if ((NULL == eth_payload) || (NULL == eth_payload_length) || (*eth_payload_length < ETHER_HDR_LEN))
   {
     QDebug_Error("ppp_process_packets is failed, parameter is invalid");
     return -1;
   }
+  
   uint8_t *struct_pacekt = NULL;
   uint8_t *src_payload = eth_payload;
-  src_payload += sizeof(struct ether_header);
-  int ip_hl = ((struct ip*)src_payload)->ip_hl * 4;
-  int ip_len = *eth_payload_length - sizeof(struct ether_header);
+  struct ip* ip_hdr = NULL;
+  
+  src_payload += ETHER_HDR_LEN;
+  ip_hdr = (struct ip*)src_payload;
+  int ip_len = *eth_payload_length - ETHER_HDR_LEN;
+  int ip_hl = ip_hdr->ip_hl * 4;
+  
   src_payload += ip_hl;
   int ppp_payload_length = ip_len - ip_hl;
   int ret = 0;
@@ -1513,21 +1371,19 @@ int ppp_process_packets(uint8_t *eth_payload, int *eth_payload_length, GRE_NODE 
   int ppp_num = ppp_ret.ppp_num;
   int ppp_index = 0, ppp_pos;
   int struct_pacekt_length = 0;
-  const int ex_hl = sizeof(struct ether_header) + ip_hl;
-  memcpy(struct_pacekt, eth_payload, sizeof(struct ether_header) + ip_hl);
-  QDebug_strval1("ppp_num", ppp_num);
+  const int ex_hl = ETHER_HDR_LEN + ip_hl;
+  memcpy(struct_pacekt, eth_payload, ETHER_HDR_LEN + ip_hl);
+  QDebug_strval2("how many packet:[] in framer:[]", ppp_num, packet_num);
   while(ppp_num--)
   {
     ppp_index = ppp_ret.ppp_num - ppp_num;
     ppp_payload_length = ppp_ret.ppp_pos[ppp_index].end - ppp_ret.ppp_pos[ppp_index].start + 1;
     struct_pacekt_length = ex_hl + ppp_payload_length;
     memcpy(struct_pacekt + ex_hl, src_payload + ppp_ret.ppp_pos[ppp_index].start, ppp_payload_length);
-    //QDebug_Errorval2("position flag:ppp_index, ppp_num", ppp_index, ppp_ret.ppp_num);
     ret = ppp_process_packet( struct_pacekt, struct_pacekt_length, (ppp_index < ppp_ret.ppp_num)? 1:0, gre_node);
     if (ret < 0)
     {
       QDebug_Error("ppp_process_packet is failed");
-      statistic_log.drop_gre_cnt++;
       goto failed;
     }
     else if (ret > 0)
@@ -1544,411 +1400,6 @@ failed:
     free(struct_pacekt);
   return -1;
 }
-
-#if 0
-/*
-* name: gre_process_fragment_start
-* parameter :
-  payload: input payload of packet
-  payload_len : packet_length
-  new_packet_hdr : pcap header of packet
-  new_packet_payload : payload of new packet
-* result:
-* description:
-            cal hashid;  add outer_ip ip.flag ip.offset ; inter_ip ip.src ip.dst
-            remove outer_ip segment and gre_headr , modify ip.fragment ip.offset ip.id ; cal ip.crc;
-
-*/
-void gre_process_fragment_start(const u_char *payload, const int payload_len, pcap_hdr *new_packet_hdr, u_char *new_packet_payload)
-{
-  u_char *buf_ppp_one_packet_payload = NULL;
-  u_char *ip_fragment = NULL;
-  int ret = 0;
-  const u_char *payload_src = NULL;
-  u_char *payload_dst = NULL;
-  int packet_size = 0;
-  payload_src = payload;
-  payload_dst = new_packet_payload;
-  memcpy( payload_dst, payload_src, sizeof(struct ether_header));
-  payload_src += sizeof(struct ether_header);
-  payload_dst += sizeof(struct ether_header);
-  packet_size = sizeof(struct ether_header);
-  QDebug_strval1("Copy Eth header, packet_size:should be 14Bytes", packet_size);
-  //get outer_ip key into ip_key data_struct
-  IP_KEY  ip_key;
-  ret = Get_IP_Item((struct ip*)payload_src, &ip_key);
-  if (ret < 0)
-  {
-    QDebug_Error("Get_IP_Item is failed; parameter is invalid;");
-    goto Failed;
-  }
-  packet_size += ip_key.total_len;
-  ip_fragment = malloc(ip_key.header_length);
-  if (NULL == ip_fragment)
-  {
-    QDebug_Error("malloc buffer of ip_fragment is failed, maybe valid space is too small");
-    goto Failed;
-  }
-  memcpy(ip_fragment, payload_src, ip_key.header_length);
-  payload_src += ip_key.header_length;
-  int fill_ip_dst, fill_ip_src;
-  int total_byte;
-  int gre_payload_length = packet_size - sizeof (struct ether_header) - ip_key.header_length;
-  GRE_FLAG gre_flag;
-  int grehdr_length = gre_get_items((struct grehdr*)payload_src, &gre_flag);
-  payload_src += grehdr_length;
-  int ppp_payload_length = gre_payload_length - grehdr_length;
-  int key = gre_flag.key;
-  int seqnum = gre_flag.seqnum;
-  PPP_RET ppp_log;
-  ret = gre_ppp_parser( payload_src, ppp_payload_length, &ppp_log);
-  if (ret < 0)
-  {
-    QDebug_Error("gre_ppp_parser is failed in gre_process_fragment_start");
-    goto Failed;
-  }
-  QDebug_strval1("total:ppp_num :", ppp_log.ppp_num);
-  int total_ppp_packet_num = ppp_log.ppp_num ;
-  int tmp_ppp_fragment_size;
-  buf_ppp_one_packet_payload = malloc (TMP_BUF_PAYLOAD_SIZE);
-  if (NULL == buf_ppp_one_packet_payload)
-  {
-    QDebug_Error("[gre_process_fragment_start]malloc tmp_payload_fragment zone failed");
-    goto Failed;
-  }
-  memset(buf_ppp_one_packet_payload, 0x00, TMP_BUF_PAYLOAD_SIZE);
-  struct pcap_pkthdr out_pkthdr = {0x00};
-  //Deal frist packet
-  int cur_ppp_packet_num = 0;
-  cur_ppp_packet_num = total_ppp_packet_num - ppp_log.ppp_num + 1;
-  tmp_ppp_fragment_size = ppp_log.ppp_pos[cur_ppp_packet_num].end - ppp_log.ppp_pos[cur_ppp_packet_num].start + 1;
-  memcpy(buf_ppp_one_packet_payload, payload_src + ppp_log.ppp_pos[cur_ppp_packet_num].start, tmp_ppp_fragment_size);
-  uint8_t *output_ppp_one_packet_payload = NULL;
-  ppp_descreamble_payload( buf_ppp_one_packet_payload, &tmp_ppp_fragment_size, output_ppp_one_packet_payload)
-  //PPP-Fragment
-  //Change something
-  struct ip* tmp_ip_hdr = (struct ip*)ip_fragment;
-  tmp_ip_hdr->ip_src.s_addr = htonl(fill_ip_src);
-  tmp_ip_hdr->ip_dst.s_addr = htonl(fill_ip_dst);
-  if (ppp_log.ppp_pos[ppp_index].end < ppp_size)
-  {
-    tmp_ip_hdr->ip_id  = htons(outer_ip_id);
-    tmp_ip_hdr->ip_off  = 0;
-    Set_IP_FLAG_DF( tmp_ip_hdr, 1);
-    Set_IP_FLAG_MF( tmp_ip_hdr, 0);
-  }
-  else
-  {
-    tmp_ip_hdr->ip_id  = htons(outer_ip_id);
-    tmp_ip_hdr->ip_off  = htons(outer_offset);
-    Set_IP_FLAG_DF( tmp_ip_hdr, 0);
-    Set_IP_FLAG_MF( tmp_ip_hdr, 1);
-  }
-  tmp_ip_hdr->ip_len = ntohs(tmp_ip_hdr->ip_hl*4+tmp_ppp_fragment_size);
-  tmp_ip_hdr->ip_p = protocol;
-  tmp_ip_hdr->ip_sum = 0x00;
-  tmp_ip_hdr->ip_sum = htons(ip_checksum( (uint16_t *)ip_fragment, tmp_ip_hdr->ip_hl*4));
-  memcpy(payload_dst, ip_fragment, tmp_ip_hdr->ip_hl*4);
-  payload_dst += tmp_ip_hdr->ip_hl*4;
-  memcpy(payload_dst, new_ppp_fragment_payload, tmp_ppp_fragment_size);
-  QDebug_strval2("packet_num,ppp_index", packet_num, ppp_index);
-  out_pkthdr.ts.tv_sec = packet_num;
-  out_pkthdr.ts.tv_usec = ppp_index;
-  out_pkthdr.caplen = tmp_ppp_fragment_size + sizeof(struct ether_header) + tmp_ip_hdr->ip_hl*4;
-  out_pkthdr.len = out_pkthdr.caplen;
-  pcap_dump((u_char *)pcap_dumper, &out_pkthdr, new_packet_payload);
-  QDebug_strval1("Frist packet is deal, num:", ppp_index);
-  ppp_log.ppp_num --;
-  while(ppp_log.ppp_num)
-  {
-    ppp_index = ppp_num - ppp_log.ppp_num + 1;
-    // printf("\033[31mPPP_Fragment:%d\033[0m\n", ppp_index);
-    payload_dst = new_packet_payload + sizeof(struct ether_header);
-    memset(tmp_ppp_fragment_payload, 0x00, 65536);
-    tmp_ppp_fragment_size = ppp_log.ppp_pos[ppp_index].end - ppp_log.ppp_pos[ppp_index].start + 1;
-    memcpy(tmp_ppp_fragment_payload, payload_src + ppp_log.ppp_pos[ppp_index].start, tmp_ppp_fragment_size);
-    ret = format_ppp_packet( tmp_ppp_fragment_payload, &tmp_ppp_fragment_size);
-    if (ret < 0)
-    {
-      QDebug_strval2("format_ppp_packet is failed,packet: fragment:", packet_num + 1, ppp_index);
-      goto NEXT;
-    }
-    new_ppp_fragment_payload = gre_remove_PPP_header( tmp_ppp_fragment_payload, &tmp_ppp_fragment_size);
-    if (new_ppp_fragment_payload == GRE_PPP_NO_IP)
-    {
-      QDebug_string("new_ppp_fragment_payload is GRE_PPP_NO_IP");
-      goto NEXT;
-    }
-    if (new_ppp_fragment_payload == GRE_PPP_FRAGMENT)
-    {
-      QDebug_string("new_ppp_fragment_payload is GRE_PPP_FRAGMENT");
-      goto NEXT;
-    }
-    gre_remove_PPP_tail( new_ppp_fragment_payload, &tmp_ppp_fragment_size);
-    //Change something
-    struct ip* inter_ip_hdr = (struct ip*)new_ppp_fragment_payload;
-    if (tmp_ppp_fragment_size < inter_ip_hdr->ip_hl*4)
-    {
-      goto NEXT;
-    }
-    else
-    {
-      fill_ip_src = ntohl(inter_ip_hdr->ip_src.s_addr);
-      fill_ip_dst = ntohl(inter_ip_hdr->ip_dst.s_addr);
-      protocol = inter_ip_hdr->ip_p;
-      new_ppp_fragment_payload+= inter_ip_hdr->ip_hl*4;
-      tmp_ppp_fragment_size -= inter_ip_hdr->ip_hl*4;
-    }
-    tmp_ip_hdr = (struct ip*)ip_fragment;
-    if (ppp_log.ppp_pos[ppp_index].end < ppp_size)
-    {
-      tmp_ip_hdr->ip_id  = htons(outer_ip_id + ppp_index);
-      tmp_ip_hdr->ip_off  = 0;
-      Set_IP_FLAG_DF( tmp_ip_hdr, 1);
-      Set_IP_FLAG_MF( tmp_ip_hdr, 0);
-    }
-    else
-    {
-      tmp_ip_hdr->ip_id  = htons(outer_ip_id);
-      tmp_ip_hdr->ip_off  = htons(outer_offset);
-      Set_IP_FLAG_DF( tmp_ip_hdr, 0);
-      Set_IP_FLAG_MF( tmp_ip_hdr, 1);
-    }
-    tmp_ip_hdr->ip_src.s_addr = htonl(fill_ip_src);
-    tmp_ip_hdr->ip_dst.s_addr = htonl(fill_ip_dst);
-    tmp_ip_hdr->ip_len = ntohs(tmp_ip_hdr->ip_hl*4 + tmp_ppp_fragment_size);
-    tmp_ip_hdr->ip_p = protocol;
-    tmp_ip_hdr->ip_sum = 0x00;
-    tmp_ip_hdr->ip_sum = htons(ip_checksum( (uint16_t *)ip_fragment, tmp_ip_hdr->ip_hl*4));
-    memcpy(payload_dst, ip_fragment, tmp_ip_hdr->ip_hl*4);
-    payload_dst += tmp_ip_hdr->ip_hl*4;
-    memcpy(payload_dst, new_ppp_fragment_payload, tmp_ppp_fragment_size);
-    out_pkthdr.ts.tv_sec = packet_num;
-    out_pkthdr.ts.tv_usec = ppp_index;
-    out_pkthdr.caplen = tmp_ppp_fragment_size + sizeof(struct ether_header) + tmp_ip_hdr->ip_hl*4;
-    out_pkthdr.len = out_pkthdr.caplen;
-    pcap_dump((u_char *)pcap_dumper, &out_pkthdr, new_packet_payload);
-NEXT:
-    ppp_log.ppp_num --;
-  }
-  Note cur;
-  cur.flag = 1;
-  cur.id = hash_id;
-  cur.inter_ip_dst = fill_ip_dst;
-  cur.inter_ip_src = fill_ip_src;
-  cur.offset = outer_offset;
-  cur.gre_flag.key = gre_flag.key;
-  cur.gre_flag.seqnum = gre_flag.seqnum;
-  Add_List( list, cur.id, cur);
-Failed:
-  if (NULL != ip_fragment)
-    free(ip_fragment);
-  if (NULL != tmp_ppp_fragment_payload)
-    free(tmp_ppp_fragment_payload);
-}
-/*
-* name: gre_process_fragment_other
-* parameter :
-  payload: input payload of packet
-  payload_len : packet_length
-  new_packet_hdr : pcap header of packet
-  new_packet_payload : payload of new packet
-* result:
-* description:
-            cal hashid;
-*/
-void gre_process_fragment_other(const u_char *payload, const int payload_len, pcap_hdr *new_packet_hdr, u_char *new_packet_payload)
-{
-  QDebug_string("[gre_process_fragment_other]comming into");
-  u_char *tmp_payload_fragment = NULL;
-  u_char *ip_fragment = NULL;
-  //Deal MAC
-  int packet_size = 0;
-  const u_char *payload_src = NULL;
-  u_char *payload_dst = NULL;
-  struct ip ip_hdr ;
-  payload_src = payload;
-  payload_dst = new_packet_payload;
-  memcpy(payload_dst, payload_src, sizeof(struct ether_header));
-  payload_src += sizeof(struct ether_header);
-  payload_dst += sizeof(struct ether_header);
-  packet_size = sizeof(struct ether_header);
-  QDebug_strval1("Copy Eth header, packet_size:should be 14Bytes", packet_size);
-  //Cal Hash_id
-  ip_hdr = *(struct ip*)payload_src;
-  uint32_t outer_ip_src, outer_ip_dst;
-  uint16_t outer_ip_id;
-  uint32_t hash_id;
-  uint32_t outer_offset;
-  int protocol;
-  outer_ip_src  =   ntohl(ip_hdr.ip_src.s_addr);
-  outer_ip_dst  =   ntohl(ip_hdr.ip_dst.s_addr);
-  outer_ip_id   =   ntohs(ip_hdr.ip_id);
-  protocol      =   ip_hdr.ip_p;
-  outer_offset  =   Get_IP_FLAG_Offset(ip_hdr);
-  hash_id       =   Get_hashid( outer_ip_dst, outer_ip_src, outer_ip_id);
-  QDebug_strval1("Cal hashid", hash_id);
-  int ip_fragment_size = ip_hdr.ip_hl * 4;
-  ip_fragment = malloc (ip_fragment_size);
-  if (NULL == ip_fragment)
-  {
-    QDebug_string("[gre_process_fragment_other]malloc ip_fragment failed");
-    return ;
-  }
-  memcpy(ip_fragment, payload_src, ip_hdr.ip_hl*4);
-  QDebug_strval1("Copy outer_ip into ip_fragment, size:should be 20Bytes", ip_hdr.ip_hl*4);
-  int fill_ip_dst, fill_ip_src;
-  //Remove gre header
-  Node *cur = Find_List( list, hash_id);
-  if (NULL == cur)
-  {
-    QDebug_string("[gre_process_fragment_other]found not hash_id, will use outer_ip");
-    fill_ip_dst = outer_ip_dst;
-    fill_ip_src = outer_ip_src;
-    //  return ;
-  }
-  else
-  {
-    fill_ip_dst = cur->ip.inter_ip_dst;
-    fill_ip_src = cur->ip.inter_ip_src;
-  }
-  packet_size += ntohs(ip_hdr.ip_len);
-  payload_src += ip_hdr.ip_hl*4;
-  int ppp_size = packet_size - sizeof (struct ether_header) - ip_hdr.ip_hl*4;
-  PPP_RET ppp_log;
-  int ret ;
-  ret = gre_ppp_parser( payload_src, ppp_size, &ppp_log);
-  if (ret < 0)
-  {
-    QDebug_string("gre_ppp_parser is failed in gre_process_fragment_other");
-    goto Failed;
-  }
-  QDebug_strval1("total:ppp_num :", ppp_log.ppp_num);
-  int ppp_num = ppp_log.ppp_num;
-  int ppp_index ;
-  u_char *new_ppp_fragment_payload = NULL;
-  tmp_payload_fragment = malloc (65536);
-  if (NULL == tmp_payload_fragment)
-  {
-    QDebug_string("[gre_process_fragment_start]malloc tmp_payload_fragment zone failed");
-    goto Failed;
-  }
-  int tmp_ppp_fragment_size;
-  struct pcap_pkthdr out_pkthdr;
-  struct ip* tmp_ip_hdr ;
-  while(ppp_log.ppp_num)
-  {
-    ppp_index = ppp_num - ppp_log.ppp_num + 1;
-    QDebug_strval1("analyse ppp_fragment, num:", ppp_index);
-    payload_dst = new_packet_payload + sizeof(struct ether_header);
-    memset(tmp_payload_fragment, 0x00, 65536);
-    QDebug_strval1("tmp_payload_fragment ", tmp_payload_fragment);
-    tmp_ppp_fragment_size = ppp_log.ppp_pos[ppp_index].end - ppp_log.ppp_pos[ppp_index].start + 1;
-    if (tmp_ppp_fragment_size < GRE_PPP_MIN_SIZE)
-    {
-      QDebug_strval1("tmp_ppp_fragment_size is invalid,", tmp_ppp_fragment_size);
-      goto NEXT;
-    }
-    memcpy(tmp_payload_fragment, payload_src + ppp_log.ppp_pos[ppp_index].start, tmp_ppp_fragment_size);
-    ret = format_ppp_packet( tmp_payload_fragment, &tmp_ppp_fragment_size);
-    if (ret < 0)
-    {
-      QDebug_strval2("format_ppp_packet is failed,packet: fragment:", packet_num + 1, ppp_index);
-      goto NEXT;
-    }
-    new_ppp_fragment_payload = gre_remove_PPP_header( tmp_payload_fragment, &tmp_ppp_fragment_size);
-    if (new_ppp_fragment_payload == GRE_PPP_NO_IP)
-    {
-      goto NEXT;
-    }
-    else
-    {
-      if ((uint64_t)new_ppp_fragment_payload != GRE_PPP_FRAGMENT)
-      {
-        ret = format_ppp_packet( new_ppp_fragment_payload, &tmp_ppp_fragment_size);
-        if (ret < 0)
-        {
-          QDebug_strval2("format_ppp_packet is failed,packet: fragment:", packet_num + 1, ppp_index);
-          goto NEXT;
-        }
-      }
-      else
-      {
-        gre_remove_PPP_tail( tmp_payload_fragment, &tmp_ppp_fragment_size);
-        QDebug_strval1("tmp_payload_fragment", tmp_payload_fragment);
-      }
-    }
-    //PPP-Fragment
-    if (((uint64_t)new_ppp_fragment_payload) == GRE_PPP_FRAGMENT)
-    {
-      QDebug_strval1("tmp_payload_fragment", tmp_payload_fragment);
-      Node* cur = Find_List( list, hash_id);
-      if (cur != NULL)
-      {
-        fill_ip_dst = cur->ip.inter_ip_dst;
-        fill_ip_src = cur->ip.inter_ip_src;
-      }
-      else
-      {
-        fill_ip_dst = outer_ip_dst;
-        fill_ip_src = outer_ip_src;
-      }
-      new_ppp_fragment_payload= tmp_payload_fragment;
-    }
-    else //not PPP-Fragment
-    {
-      QDebug_string("ppp_fragment is not fragment");
-      struct ip* inter_ip_hdr = (struct ip*)new_ppp_fragment_payload;
-      if (inter_ip_hdr->ip_hl*4 < tmp_ppp_fragment_size)
-      {
-        goto Failed;
-      }
-      fill_ip_src = ntohl(inter_ip_hdr->ip_src.s_addr);
-      fill_ip_dst = ntohl(inter_ip_hdr->ip_dst.s_addr);
-      protocol    =  inter_ip_hdr->ip_p;
-      new_ppp_fragment_payload += inter_ip_hdr->ip_hl*4;
-      tmp_ppp_fragment_size -= inter_ip_hdr->ip_hl*4;
-    }
-    tmp_ip_hdr = (struct ip*)ip_fragment;
-    tmp_ip_hdr->ip_sum = 0x00;
-    tmp_ip_hdr->ip_src.s_addr = htonl(fill_ip_src);
-    tmp_ip_hdr->ip_dst.s_addr = htonl(fill_ip_dst);
-    tmp_ip_hdr->ip_p = protocol;
-    if (ppp_log.ppp_pos[ppp_index].end < ppp_size)
-    {
-      tmp_ip_hdr->ip_id  = htons(outer_ip_id + ppp_index);
-      tmp_ip_hdr->ip_off  = 0;
-      Set_IP_FLAG_DF( tmp_ip_hdr, 1);
-      Set_IP_FLAG_MF( tmp_ip_hdr, 0);
-    }
-    else
-    {
-      tmp_ip_hdr->ip_id  = htons(outer_ip_id);
-      tmp_ip_hdr->ip_off  = htons(outer_offset);
-      Set_IP_FLAG_DF( tmp_ip_hdr, 0);
-      Set_IP_FLAG_MF( tmp_ip_hdr, 1);
-    }
-    tmp_ip_hdr->ip_sum = ip_checksum((uint16_t *)tmp_ip_hdr, tmp_ip_hdr->ip_hl*4);
-    memcpy(payload_dst, ip_fragment, tmp_ip_hdr->ip_hl*4);
-    payload_dst += tmp_ip_hdr->ip_hl*4;
-    QDebug_strval1("tmp_ppp_fragment_size", tmp_ppp_fragment_size);
-    memcpy(payload_dst, new_ppp_fragment_payload, tmp_ppp_fragment_size );
-    out_pkthdr.ts.tv_sec = packet_num;
-    out_pkthdr.ts.tv_usec = ppp_index;
-    out_pkthdr.caplen = tmp_ppp_fragment_size + sizeof(struct ether_header) + tmp_ip_hdr->ip_hl*4;
-    out_pkthdr.len = out_pkthdr.caplen;
-    pcap_dump((u_char *)pcap_dumper, &out_pkthdr, new_packet_payload);
-NEXT:
-    ppp_log.ppp_num --;
-  }
-Failed:
-  if (ip_fragment != NULL)
-    free(ip_fragment);
-  if (NULL != tmp_payload_fragment)
-    free(tmp_payload_fragment);
-}
-
-#endif
 
 
 
@@ -2709,31 +2160,33 @@ void handle_packets(u_char *bpf_filter, const struct pcap_pkthdr *pkthdr, const 
     ip_hdr = (const struct ip *) (in_payload + sizeof(struct ether_header));
     if (ip_hdr->ip_p == IPPROTO_GRE)
     {
-      int ip_src, ip_dst, ip_id ;
-      uint16_t ip_len, ip_hl, ip_off;
-      uint32_t hash_id = 0;
-      uint64_t packet_length;
-      ip_len  =  ntohs(ip_hdr->ip_len);
-      ip_hl   =   ip_hdr->ip_hl * 4;
-      ip_id   =   ntohs(ip_hdr->ip_id);
-      ip_off  =  (ntohs(ip_hdr->ip_off)&IP_OFFMASK)*8;
-      ip_src  =  ntohl(ip_hdr->ip_src.s_addr);
-      ip_dst  =  ntohl(ip_hdr->ip_dst.s_addr);
-      hash_id = ip_cal_hashid( ip_src,  ip_dst,  ip_id);
-      packet_length = ip_len + ETHER_HDR_LEN;
-      uint8_t *src_payload = in_payload;
       new_payload = (uint8_t*)malloc (TMP_BUF_PAYLOAD_SIZE);
       if (NULL == new_payload)
       {
         QDebug_Error("malloc is failed");
         goto END;
       }
-      memcpy(new_payload, src_payload, ETHER_HDR_LEN + ip_hl);
-      src_payload += ETHER_HDR_LEN + ip_hl;
+      int ret = 0;
+      IP_INFO ip_info = {0x00};
+      ret = ip_all_info( ip_hdr, &ip_info);
+      if (ret < 0){
+        QDebug_Error("ip_all_info is failed");
+        goto END;
+      }
+      //because the in_pkt->len is wrong, so i cal the length
+      int packet_length = ip_info.total_len + ETHER_HDR_LEN;
+      //get ip_info
+      uint32_t hash_id;
+      hash_id =   ip_cal_hashid( ip_info.ip_src,  ip_info.ip_dst, 0);
+      
+      uint8_t *src_payload = in_payload;
+      const int ex_hl = ETHER_HDR_LEN + ip_info.hl;
+      memcpy(new_payload, src_payload, ex_hl);
+      src_payload += ex_hl;
+      
       int gre_hl = 0;
+      int ip_frag = (ip_info.offset)?1:0;
       GRE_NODE gre_node = {0x00};
-
-      int ip_frag = (ntohs(ip_hdr->ip_off) & IP_OFFMASK)?1:0;
       if (ip_frag){
           gre_hl = 0;
       }else {
@@ -2748,7 +2201,6 @@ void handle_packets(u_char *bpf_filter, const struct pcap_pkthdr *pkthdr, const 
           gre_node.enable = 0;
         }else {
           gre_node = list_node->gre_node;
-          gre_node.enable = 1;
         }
       }else {
           gre_node.enable = 1;
@@ -2756,9 +2208,8 @@ void handle_packets(u_char *bpf_filter, const struct pcap_pkthdr *pkthdr, const 
       
       src_payload += gre_hl;
       packet_length -= gre_hl;
-      memcpy(new_payload + ETHER_HDR_LEN + ip_hl, src_payload, packet_length - ETHER_HDR_LEN - ip_hl);
-      //re-struct packet : mac + ip + ppp + payload 
-      int ret = 0;
+      memcpy(new_payload + ex_hl, src_payload, packet_length - ex_hl);
+      //struct packet, eth_ip_ppp_payload (gre_node info)->gre_node 
       ret = ppp_process_packets(new_payload, &packet_length, &gre_node);
       if (ret < 0)
       {
